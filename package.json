@@ -1,0 +1,28 @@
+{
+  "name": "interviewium-be-n11-epsilon",
+  "version": "1.0.0",
+  "description": "🎯 **Objective**",
+  "main": "index.js",
+  "scripts": {
+    "dev" : "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pesto-students/interviewium-be-n11-epsilon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pesto-students/interviewium-be-n11-epsilon/issues"
+  },
+  "homepage": "https://github.com/pesto-students/interviewium-be-n11-epsilon#readme",
+  "devDependencies": {
+    "nodemon": "^2.0.15",
+    "prisma": "^3.8.1"
+  },
+  "dependencies": {
+    "@prisma/client": "^3.8.1",
+    "express": "^4.17.2"
+  }
+}
