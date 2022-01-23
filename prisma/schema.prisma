@@ -73,6 +73,7 @@ model Interviewee {
   createdAt                DateTime         @default(now())
   updatedAt                DateTime @updatedAt
   intervieweeProfileImageS3Link   String? @db.VarChar(255)
+  resume                   String? @db.VarChar(255)
   jobApplications          JobApplicationHistory[]
   ongoingInterviews        OngoingInterviewStatus[]
   offers                   Offers[]

@@ -137,8 +137,69 @@ router.get('/:humanResourceEmail', async (req, res) => {
     });
 
     res.json(interviewers);
-})
+});
 
+router.get('/profile/:email', async (req, res) => {
+    let interviewerEmail = req.params.email;
+    
+    let interviewerProfile = await interviewer.findUnique({
+        where: {
+            email: interviewerEmail
+        },
+        include: {
+            company: true
+        }
+    });
+
+    res.json(interviewerProfile);
+});
+
+/*
+    Returns all interviews taken by the interviewer with:
+    1. Interviewee name
+    2. Interviewee email
+    3. Interview round number
+    4. Interviewer's verdict
+    5. Job Title
+    6. Job ID
+*/
+router.get('/interviews/:email', async (req, res) => {
+    let interviewerEmail = req.params.email;
+    // From Interviewer email, fetch interviewer ID
+    let { id } = await interviewer.findUnique({
+        select: {
+            id: true
+        },
+        where: {
+            email: interviewerEmail
+        }
+    });
+
+    let verdictsAndFeedbacks = await ongoingInterviewStatus.findMany({
+        where: {
+            interviewerId: id
+        },
+        select: {
+            interviewRoundNumber: true,
+            interviewerVerdict: true,
+            interviewee: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true
+                }
+            },
+            job: {
+                select: {
+                    id: true,
+                    title: true
+                }
+            }
+        }
+    });
+
+    res.json(verdictsAndFeedbacks);
+});
 
 // POST Endpoints
 
@@ -161,6 +222,38 @@ router.put('/calendlyLink/:email', async (req, res) => {
     });
 
     res.json(calendlyLink);
+});
+
+// Update interview verdict (where inteview is identified
+// uniquely by an interviewee ID & job ID)
+router.put('/updateVerdictAndReview', async (req, res) => {
+    let intervieweeId = req.body.intervieweeId;
+    let jobId = req.body.jobId; 
+    let interviewerVerdict = req.body.interviewerVerdict; // PASSED, FAILED or UNDECIDED?
+    let interviewerReview = req.body.interviewerReview;
+
+    // Fetch ongoing interview record ID, from interviewee ID & job ID
+    let { id } = await ongoingInterviewStatus.findFirst({
+        where: {
+            intervieweeId: intervieweeId,
+            jobId: jobId
+        },
+        select: {
+            id: true
+        }
+    });
+
+    let updatedOngoingInterviewRecord = await ongoingInterviewStatus.update({
+        where: {
+            id: id
+        },
+        data: {
+            interviewerVerdict: interviewerVerdict,
+            interviewerReview: interviewerReview
+        }
+    });
+
+    res.json(updatedOngoingInterviewRecord);
 });
 
 module.exports = router;

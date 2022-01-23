@@ -82,6 +82,20 @@ router.post('/assignInterviewer', async (req, res) => {
     })
 
     res.json(newOngoingInterviewRecord);
+});
+
+router.post('/', async (req, res) => {
+    let intervieweeEmail = req.body.email;
+    let primaryAndSecondarySkills = ""
+
+    let newIntervieweeRecord = await interviewee.create({
+        data: {
+            email: intervieweeEmail,
+            primaryAndSecondarySkills: primaryAndSecondarySkills
+        }
+    });
+
+    res.json(newIntervieweeRecord);
 })
 
 module.exports = router
@@ -118,4 +132,29 @@ router.put('/shortlist', async (req, res) => {
     });
 
     res.json(updatedJobApplication);
+});
+
+router.put('/', async (req, res) => {
+    let intervieweeEmail = req.body.intervieweeEmail;
+    let intervieweeName = req.body.intervieweeName;
+    let primarySkills = req.body.primarySkills;
+    let secondarySkills = req.body.secondarySkills;
+    let companyName = req.body.companyName;
+    let resume = req.body.resume;
+
+    let primaryAndSecondarySkills = primarySkills + '#' + secondarySkills;
+
+    let updatedIntervieweeRecord = await interviewee.update({
+        where: {
+            email: intervieweeEmail
+        },
+        data: {
+            name: intervieweeName,
+            primaryAndSecondarySkills: primaryAndSecondarySkills,
+            currentCompanyName: companyName,
+            resume: resume
+        }
+    });
+
+    res.json(updatedIntervieweeRecord);
 });
