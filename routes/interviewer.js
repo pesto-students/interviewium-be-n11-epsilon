@@ -36,6 +36,26 @@ router.get('/today/:email', async (req, res) => {
     let allInterviews = await ongoingInterviewStatus.findMany({
         where: {
             interviewerId: id,
+        },
+        select: {
+            job: {
+                select: {
+                    title: true,
+                    company: {
+                        select: {
+                            companyName: true
+                        }
+                    }
+                }
+            },
+            interviewee: {
+                select: {
+                    name: true
+                }
+            },
+            interviewDateTime: true,
+            joiningLink: true,
+            interviewRoundNumber: true
         }
     });
 
