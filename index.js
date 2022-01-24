@@ -14,6 +14,7 @@ app.get("/status", async(req, res) => {
 app.use('/api/humanResource', require('./routes/humanResource.js'));
 app.use('/api/interviewee', require('./routes/interviewee.js'));
 app.use('/api/interviewer', require('./routes/interviewer.js'));
+app.use('/api/job', require('./routes/job.js'));
 
 app.listen(port, () => {
     console.log(`Listening on port ${port}`)

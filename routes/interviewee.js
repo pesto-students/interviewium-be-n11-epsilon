@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const res = require('express/lib/response');
-const { interviewee, jobApplicationHistory, humanResource, ongoingInterviewStatus } = new PrismaClient();
+const { interviewee, jobApplicationHistory, humanResource, ongoingInterviewStatus, hotJobOfTheDay } = new PrismaClient();
 
 // GET Endpoints
 // Returns a list of all interviewees in our ecosystem
@@ -9,6 +9,17 @@ router.get('/', async (req, res) => {
     let interviewees = await interviewee.findMany({});
 
     res.json(interviewees);
+});
+
+router.get('/hotJobOfTheDay', async (req, res) => {
+    let hotJobOfTheDayRecord = await hotJobOfTheDay.findMany({
+        orderBy: {
+            createdAt: 'desc'
+        },
+        take: 1
+    });
+
+    res.json(hotJobOfTheDayRecord);
 });
 
 /*
@@ -165,19 +176,6 @@ router.get('/recentShortlists/:email', async (req, res) => {
     })
 
     res.json(recentJobShortlists);
-})
-
-// Returns interviewee, identified by email
-router.get('/:email', async (req, res) => {
-    let intervieweeEmail = req.params.email;
-
-    let foundInterviewee = await interviewee.findUnique({
-        where: {
-            email: intervieweeEmail
-        }
-    });
-
-    res.json(foundInterviewee);
 });
 
 /* 
@@ -204,7 +202,101 @@ router.get('/waitingAssignment/:humanResourceEmail', async (req, res) => {
     });
 
     res.json(jobApplicationsTaggedToHRInShortlistedStatus);
-})
+});
+
+router.get('/jobsApplied/:email', async (req, res) => {
+    let intervieweeEmail = req.params.email;
+    // From interviewee email, fetch interviewee ID
+    let { id } = await interviewee.findUnique({
+        where: {
+            email: intervieweeEmail
+        },
+        select: {
+            id: true
+        }
+    });
+
+    let jobsAppliedByInterviewee = await jobApplicationHistory.findMany({
+        where: {
+            intervieweeId: id
+        },
+        select: {
+            job: {
+                select: {
+                    id: true,
+                    title: true,
+                    company: {
+                        select: {
+                            companyName: true
+                        }
+                    }
+                }
+            },
+            shortlistedAt: true,
+            createdAt: true,
+            currentInterviewRound: true,
+            currentInterviewer: {
+                select: {
+                    calendlyLink: true
+                }
+            }
+        }
+    });
+
+    res.json(jobsAppliedByInterviewee);
+});
+
+router.get('/interviews/:email', async (req, res) => {
+    let intervieweeEmail = req.params.email;
+    // From interviewee email, fetch interviewee ID
+    let { id } = await interviewee.findUnique({
+        where: {
+            email: intervieweeEmail
+        },
+        select: {
+            id: true
+        }
+    });
+
+    let interviewsIntervieweeIsPartOf = await ongoingInterviewStatus.findMany({
+        where: {
+            intervieweeId: id
+        }
+    });
+
+    res.json(interviewsIntervieweeIsPartOf);
+});
+
+router.get('/profile/:email', async (req, res) => {
+    let intervieweeEmail = req.params.email;
+    let intervieweeRecord = await interviewee.findUnique({
+        where: {
+            email: intervieweeEmail
+        },
+        select: {
+            name: true,
+            email: true,
+            primaryAndSecondarySkills: true,
+            currentCompanyName: true,
+            resume: true
+        }
+    });
+
+    res.json(intervieweeRecord);
+});
+
+// Returns interviewee, identified by email
+router.get('/:email', async (req, res) => {
+    let intervieweeEmail = req.params.email;
+
+    let foundInterviewee = await interviewee.findUnique({
+        where: {
+            email: intervieweeEmail
+        }
+    });
+
+    res.json(foundInterviewee);
+});
 
 // POST Endpoints
 // Assigns interviewer to interviewees waiting for interviewer assignment, for a particular job
@@ -266,9 +358,7 @@ router.post('/', async (req, res) => {
     });
 
     res.json(newIntervieweeRecord);
-})
-
-module.exports = router
+});
 
 // PUT Endpoints
 /*
@@ -328,3 +418,9 @@ router.put('/', async (req, res) => {
 
     res.json(updatedIntervieweeRecord);
 });
+
+router.put('/profile', async (req, res) => {
+
+});
+
+module.exports = router;
