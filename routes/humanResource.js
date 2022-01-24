@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const res = require('express/lib/response');
 const { humanResource, jobApplicationHistory, hrJobPostHistory, job, interviewee, company,
-        location, hrInterviewerInviteHistory, interviewer } = new PrismaClient();
+        location, hrInterviewerInviteHistory, interviewer, ongoingInterviewStatus } = new PrismaClient();
 
 // GET Endpoints
 router.get('/', async (req, res) => {
@@ -295,28 +295,38 @@ router.get('/ongoingInterviews/:email', async (req, res) => {
     let humanResourceEmail = req.params.email;
     // From Human Resource email, fetch human resource ID
     let { id } = await humanResource.findUnique({
-       select: {
-           id: true
-       },
        where: {
            email: humanResourceEmail
+       },
+       select: {
+           id: true
        }
    });
 
-   let ongoingInterviews = await jobApplicationHistory.findMany({
+   let ongoingInterviews = await ongoingInterviewStatus.findMany({
        where: {
            humanResourceId: id,
-           OR : [
-               {
-                   "applicationStatus": "ONGOING"
-               },
-               {
-                   "applicationStatus": "PASSED"
-               },
-               {
-                   "applicationStatus": "WAITING_FOR_INTERVIEWER_ASSIGNMENT"
+           interviewProgressStatus: "IN_PROGRESS"
+       },
+       select: {
+           id: true,
+           interviewee: {
+               select: {
+                    id: true,
+                    name: true,
+                    email: true
                }
-           ]
+           },
+           interviewer: {
+               select: {
+                   id: true,
+                   name: true,
+                   email: true
+               }
+           },
+           interviewRoundNumber: true,
+           interviewerVerdict: true,
+           interviewDateTime: true
        }
    });
 
@@ -339,17 +349,36 @@ router.get('/previousInterviews/:email', async (req, res) => {
        }
    });
 
-   let previousInterviews = await jobApplicationHistory.findMany({
+   let previousInterviews = await ongoingInterviewStatus.findMany({
        where: {
            humanResourceId: id,
-           OR : [
+           OR: [
                {
-                   "applicationStatus": "ACCEPTED"
+                   interviewProgressStatus: "ACCEPTED"
                },
                {
-                   "applicationStatus": "REJECTED"
+                   interviewProgressStatus: "REJECTED"
                }
            ]
+       },
+       select: {
+            id: true,
+            interviewee: {
+                select: {
+                    id: true,
+                    email: true,
+                    name: true
+                }
+            },
+            interviewer: {
+                select: {
+                    id: true,
+                    email: true,
+                    name: true
+                }
+            },
+            interviewProgressStatus: true, // Used to find Hire Status
+            interviewDateTime: true
        }
    });
 

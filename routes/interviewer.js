@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const res = require('express/lib/response');
-const { interviewer, hrInterviewerInviteHistory, humanResource, ongoingInterviewStatus } = new PrismaClient();
+const { interviewer, hrInterviewerInviteHistory, humanResource, ongoingInterviewStatus, jobApplicationHistory } = new PrismaClient();
 
 // GET Endpoints
 /*
@@ -227,22 +227,30 @@ router.put('/calendlyLink/:email', async (req, res) => {
 // Update interview verdict (where inteview is identified
 // uniquely by an interviewee ID & job ID)
 router.put('/updateVerdictAndReview', async (req, res) => {
+    // Fields used to locate JobApplicationHistory & OngoingInterviewStatus record
+    // Interviewee ID & Job ID are used to uniquely locate a JobApplicationHistory record
+    // Interviewee ID, Job ID & Interview Round Number is used to uniquely locate an OngoingInterviewStatus record
     let intervieweeId = req.body.intervieweeId;
     let jobId = req.body.jobId; 
+    let interviewRoundNumber = req.body.interviewRoundNumber;
+
+    // Fields to update in OngoingInterviewStatus
     let interviewerVerdict = req.body.interviewerVerdict; // PASSED, FAILED or UNDECIDED?
     let interviewerReview = req.body.interviewerReview;
-
+    
     // Fetch ongoing interview record ID, from interviewee ID & job ID
     let { id } = await ongoingInterviewStatus.findFirst({
         where: {
             intervieweeId: intervieweeId,
-            jobId: jobId
+            jobId: jobId,
+            interviewRoundNumber: interviewRoundNumber
         },
         select: {
             id: true
         }
     });
 
+    // Update Ongoing Interview Status Record
     let updatedOngoingInterviewRecord = await ongoingInterviewStatus.update({
         where: {
             id: id
@@ -252,6 +260,77 @@ router.put('/updateVerdictAndReview', async (req, res) => {
             interviewerReview: interviewerReview
         }
     });
+
+    let jobApplicationHistoryRecord = await jobApplicationHistory.findFirst({
+        where: {
+            intervieweeId: intervieweeId,
+            jobId: jobId
+        }
+    });
+    let jobApplicationHistoryRecordId = jobApplicationHistoryRecord.id;
+
+    // What to do if an interviewer passes the interviewee?
+    if (interviewerVerdict == "PASSED") {
+        // If current interview round is 4, then the candidate has PASSED all the interviews!
+        // Congratulations Mr/Miss Candidate!
+
+        let currentInterviewRound = updatedOngoingInterviewRecord.interviewRoundNumber
+
+        // Note: All interviews in interviewium are set for four rounds
+        if (currentInterviewRound == 4) {  
+            let updatedJobApplicationHistoryRecord = await jobApplicationHistory.update({
+                where: {
+                    id: jobApplicationHistoryRecordId
+                },
+                data: {
+                    applicationStatus: "PASSED"
+                }
+            });
+        } else {
+            // The round that the candidate has passed is either 1st/2nd/3rd. We hence advance the candidate to the
+            // next round
+            // With this, their job application status is again moved back to "WAITING_FOR_INTERVIEWER_ASSIGNMENT" as
+            // the candidte needs a new interviewer to take the next round
+
+            // We increase current interview round value by 1
+            currentInterviewRound = currentInterviewRound + 1;
+
+            let updatedJobApplicationHistoryRecord = await jobApplicationHistory.update({
+                where: {
+                    id: jobApplicationHistoryRecordId
+                },
+                data: {
+                    applicationStatus: "WAITING_FOR_INTERVIEWER_ASSIGNMENT",
+                    currentInterviewRound: currentInterviewRound,
+                    interviewerMappingDone: false
+                }
+            });
+        }
+    };
+
+    // What to do if an interviewer rejects the candidate?
+    if (interviewerVerdict == "FAILED") {
+        // Move interview progress state to REJECTED in Ongoing Interview Status
+        let updatedOngoingInterviewRecord1 = await ongoingInterviewStatus.update({
+            where: {
+                id: id
+            },
+            data: {
+                interviewProgressStatus: "REJECTED"
+            }
+        });
+        updatedOngoingInterviewRecord = updatedOngoingInterviewRecord1;
+
+        // Simply move the candidate's job application status to rejected
+        let updatedJobApplicationHistoryRecord = await jobApplicationHistory.update({
+            where: {
+                id: jobApplicationHistoryRecordId
+            },
+            data: {
+                applicationStatus: "REJECTED"
+            }
+        });
+    }
 
     res.json(updatedOngoingInterviewRecord);
 });

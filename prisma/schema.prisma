@@ -98,6 +98,7 @@ model Interviewer {
   hrInvite                        HrInterviewerInviteHistory?
   ongoingInterviews               OngoingInterviewStatus[]
   interviewsTaken                InterviewerInterviewHistory[]
+  jobApplicationsForWhichCurrentlyTakingInterviewsFor  JobApplicationHistory[]
 }
  
 model Job {
@@ -160,9 +161,12 @@ model JobApplicationHistory {
   humanResource         HumanResource @relation(fields: [humanResourceId], references: [id])
   humanResourceId       String
   applicationStatus     ApplicationStatus @default(APPLIED)
+  interviewerMappingDone Boolean @default(false)
+  currentInterviewer    Interviewer? @relation(fields: [currentInterviewerId], references: [id])
+  currentInterviewerId         String?
   createdAt             DateTime          @default(now())
   updatedAt             DateTime @updatedAt
-  currentInterviewRound Int?
+  currentInterviewRound Int @default(0)
   shortlistedAt         DateTime?
 }
  
@@ -182,6 +186,7 @@ model OngoingInterviewStatus {
   interviewRoundNumber Int?
   interviewDateTime    DateTime?
   interviewerVerdict   InterviewerVerdict? @default(UNDECIDED)
+  interviewProgressStatus InterviewProgessStatus @default(IN_PROGRESS)
   createdAt            DateTime            @default(now())
   updatedAt            DateTime @updatedAt
 }
@@ -258,4 +263,10 @@ enum InterviewerVerdict {
   PASSED
   FAILED
   UNDECIDED
+}
+
+enum InterviewProgessStatus {
+  IN_PROGRESS
+  ACCEPTED
+  REJECTED
 }
