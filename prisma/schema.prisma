@@ -1,0 +1,272 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Database Models
+ 
+model HumanResource {
+  @@map("humanResources")
+  id                     String   @id @unique @default(cuid())
+  email                  String   @unique
+  name                    String @default("Default Name")
+  ongoingInterviewsCount Int   @default(0)
+  onboarded              Boolean  @default(false)
+  company                Company? @relation(fields: [companyId], references: [id])
+  companyId              String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  hrProfileImageS3Link          String? @db.VarChar(255)
+  jobPosts               HrJobPostHistory[]
+  interviewerInvites     HrInterviewerInviteHistory[]
+  jobs                   Job[]
+  jobApplicationsTaggedTo  JobApplicationHistory[]
+  ongoingInterviews        OngoingInterviewStatus[]
+}
+ 
+model HrJobPostHistory {
+  @@map("hrJobPostsHistory")
+  id            String        @id @unique @default(cuid())
+  humanResource HumanResource @relation(fields: [humanResourceId], references: [id])
+  humanResourceId String
+  job           Job           @relation(fields: [jobId], references: [id])
+  jobId         String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime @updatedAt
+}
+ 
+model HrInterviewerInviteHistory {
+  @@map("hrInterviewerInvitesHistory")
+  id            String        @id @unique @default(cuid())
+  humanResource HumanResource @relation(fields: [humanResourceId], references: [id])
+  humanResourceId String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime @updatedAt
+  interviewer   Interviewer   @relation(fields: [interviewerId], references: [id])
+  interviewerId String
+}
+ 
+model Interviewee {
+  @@map("interviewees")
+  id                       String           @id @unique @default(cuid())
+  email                    String           @unique @db.VarChar(255)
+  name String @default("Default Name")
+  onboarded                Boolean          @default(false)
+  lookingForEmploymentType EmploymentType   @default(FULL_TIME)
+  yearsOfExperience        Int?
+  intervieweeDescription   String?          @db.VarChar(4096)
+  mobileNumber             String?
+  linkedinProfileLink      String? @db.VarChar(255)
+  educationalExperience    Json?
+  professionalExperience   Json?
+  currentCompanyName       String?
+  resumeLink               String? @db.VarChar(255)
+  primaryAndSecondarySkills   String       @db.VarChar(1024)
+  tags                     String?          @db.VarChar(512)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime @updatedAt
+  intervieweeProfileImageS3Link   String? @db.VarChar(255)
+  resume                   String? @db.VarChar(255)
+  jobApplications          JobApplicationHistory[]
+  ongoingInterviews        OngoingInterviewStatus[]
+  offers                   Offers[]
+  interviewedWith          InterviewerInterviewHistory[]
+  interviewsHistoricallyPartOf IntervieweeInterviewHistory[]
+}
+ 
+model Interviewer {
+  @@map("interviewers")
+  id                              String   @id @unique @default(cuid())
+  email                           String   @unique
+  name String @default("Default Name")
+  active                          Boolean  @default(true)
+  onboarded                       Boolean  @default(false)
+  numberOfInterviewReviewsPending Int @default(0)
+  calendlyLink                    String?  @db.VarChar(255)
+  company                         Company @relation(fields: [companyId], references: [id])
+  companyId                       String
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+  interviewerProfileImageS3Link          String? @db.VarChar(255)
+  hrInvite                        HrInterviewerInviteHistory?
+  ongoingInterviews               OngoingInterviewStatus[]
+  interviewsTaken                InterviewerInterviewHistory[]
+  jobApplicationsForWhichCurrentlyTakingInterviewsFor  JobApplicationHistory[]
+}
+ 
+model Job {
+  @@map("jobs")
+  id                   String  @id @unique @default(cuid())
+  title                String @db.VarChar(255)
+  humanResource        HumanResource @relation(fields: [humanResourceId], references: [id])
+  humanResourceId      String
+  minExperienceInYears Int?
+  maxExperienceInYears Int?
+  employmentType       EmploymentType @default(FULL_TIME)
+  jobDescription       String?        @db.VarChar(4096)
+  numberOfRounds       Int            @default(4)
+  companyIconS3Link    String? @db.VarChar(255)
+  company              Company @relation(fields: [companyId], references: [id])
+  companyId            String
+  location             Location @relation(fields: [locationId], references: [id])
+  locationId           String
+  primaryAndSecondarySkills   String @db.VarChar(1024)
+  tags                 String?  @db.VarChar(512)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime @updatedAt
+  jobPost              HrJobPostHistory?
+  jobApplications      JobApplicationHistory[]
+  ongoingInterviews    OngoingInterviewStatus[]
+  offers               Offers[]
+  interviewsTakenForThisJob InterviewerInterviewHistory[]
+  intervieweesWhoInterviewedForThisJob IntervieweeInterviewHistory[]
+}
+ 
+model Location {
+  @@map("locations")
+  id        String   @id @unique @default(cuid())
+  city      String   @db.VarChar(255)
+  country   String   @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  jobs      Job[]
+}
+ 
+model Company {
+  @@map("companies")
+  id                     String   @id @unique @default(cuid())
+  companyName            String   @unique @db.VarChar(255)
+  companyEmailDomainName String?  @unique 
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  humanResources          HumanResource[]
+  interviewers            Interviewer[]
+  jobs                    Job[]
+}
+ 
+model JobApplicationHistory {
+  @@map("jobApplicationsHistory")
+  id                    String            @id @unique @default(cuid())
+  job                   Job @relation(fields: [jobId], references: [id])
+  jobId                 String
+  interviewee           Interviewee @relation(fields: [intervieweeId], references: [id])
+  intervieweeId         String
+  humanResource         HumanResource @relation(fields: [humanResourceId], references: [id])
+  humanResourceId       String
+  applicationStatus     ApplicationStatus @default(APPLIED)
+  interviewerMappingDone Boolean @default(false)
+  currentInterviewer    Interviewer? @relation(fields: [currentInterviewerId], references: [id])
+  currentInterviewerId         String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime @updatedAt
+  currentInterviewRound Int @default(0)
+  shortlistedAt         DateTime?
+}
+ 
+model OngoingInterviewStatus {
+  @@map("ongoingInterviewsStatus")
+  id                   String              @id @unique @default(cuid())
+  interviewee          Interviewee @relation(fields: [intervieweeId], references: [id])
+  intervieweeId        String
+  humanResource        HumanResource @relation(fields: [humanResourceId], references: [id])
+  humanResourceId      String
+  job                  Job @relation(fields: [jobId], references: [id])
+  jobId                String
+  interviewer          Interviewer @relation(fields: [interviewerId], references: [id])
+  interviewerId        String
+  joiningLink          String? @db.VarChar(255)
+  interviewerReview    String? @db.VarChar(2048)
+  interviewRoundNumber Int?
+  interviewDateTime    DateTime?
+  interviewerVerdict   InterviewerVerdict? @default(UNDECIDED)
+  interviewProgressStatus InterviewProgessStatus @default(IN_PROGRESS)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime @updatedAt
+}
+ 
+model Offers {
+  @@map("offers")
+  id          String      @id @unique @default(cuid())
+  interviewee Interviewee @relation(fields: [intervieweeId], references: [id])
+  intervieweeId String
+  job         Job @relation(fields: [jobId], references: [id])
+  jobId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+ 
+model InterviewerInterviewHistory {
+  @@map("interviewerInterviewsHistory")
+  id                    String             @id @unique @default(cuid())
+  interviewee           Interviewee @relation(fields: [intervieweeId], references: [id])
+  intervieweeId         String
+  job                   Job @relation(fields: [jobId], references: [id])
+  jobId                 String
+  interviewDateTime     DateTime?
+  joiningLink           String? @db.VarChar(255)
+  interviewRound        Int?
+  interviewRoundVerdict InterviewerVerdict @default(UNDECIDED)
+  interviewer           Interviewer @relation(fields: [interviewerId], references: [id])
+  interviewerId         String
+  createdAt             DateTime           @default(now())
+  updatedAt            DateTime @updatedAt
+}
+ 
+model IntervieweeInterviewHistory {
+  @@map("intervieweeInterviewsHistory")
+  id                String      @id @unique @default(cuid())
+  interviewee       Interviewee @relation(fields: [intervieweeId], references: [id])
+  intervieweeId     String
+  job               Job @relation(fields: [jobId], references: [id])
+  jobId             String
+  roundNumber       Int
+  interviewDateTime DateTime
+  joiningLink       String @db.VarChar(255)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime @updatedAt
+}
+ 
+model HotJobOfTheDay {
+  @@map("hotJobsOfTheDay")
+  id            String   @id @unique @default(cuid())
+  title         String @db.VarChar(255)
+  company       String @db.VarChar(255)
+  minExperience Int
+  maxExperience Int
+  createdAt     DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+}
+ 
+enum ApplicationStatus {
+  APPLIED
+  ONGOING
+  PASSED
+  ACCEPTED
+  REJECTED
+  WAITING_FOR_INTERVIEWER_ASSIGNMENT
+}
+ 
+enum InterviewerVerdict {
+  PASSED
+  FAILED
+  UNDECIDED
+}
+
+enum InterviewProgessStatus {
+  IN_PROGRESS
+  ACCEPTED
+  REJECTED
+}
