@@ -82,6 +82,43 @@ router.get('/dashboardHeader/:email', async (req, res) => {
     res.json(finalQueryResult);
 });
 
+router.get('/graph/:email', async (req, res) => {
+    let intervieweeEmail = req.params.email;
+    // From interviewee email, fetch interviewee ID
+    let { id } = await interviewee.findUnique({
+        where: {
+            email: intervieweeEmail
+        },
+        select: {
+            id: true
+        }
+    });
+
+    let finalQueryResult = {};
+
+    let numberOfShortlistsReceived = await jobApplicationHistory.count({
+        where: {
+            intervieweeId: id,
+            NOT: [
+                {
+                    applicationStatus: "APPLIED"
+                }
+            ]
+        }
+    });
+    finalQueryResult["numberOfShortlistsReceived"] = numberOfShortlistsReceived;
+
+    let numberOfOffersReceived = await jobApplicationHistory.count({
+        where: {
+            intervieweeId: id,
+            applicationStatus: "PASSED"
+        }
+    });
+    finalQueryResult["numberOfOffersReceived"] = numberOfOffersReceived;
+
+    res.json(finalQueryResult);
+});
+
 router.get('/interviewsForToday/:email', async (req, res) => {
     let intervieweeEmail = req.params.email;
     // From interviewee email, fetch interviewee ID
