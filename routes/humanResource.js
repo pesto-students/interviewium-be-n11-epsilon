@@ -5,21 +5,29 @@ const { humanResource, jobApplicationHistory, hrJobPostHistory, job, interviewee
         location, hrInterviewerInviteHistory, interviewer, ongoingInterviewStatus } = new PrismaClient();
 
 // GET Endpoints
-router.get('/', async (req, res) => {
-    let humanResources = await humanResource.findMany({});
+router.get('/', async (req, res, next) => {
+    try {
+        let humanResources = await humanResource.findMany({});
 
-    res.json(humanResources);
+        res.json(humanResources);
+    } catch (error) {
+        next(error)
+    }
 })
 
-router.get('/:email', async (req, res) => {
-    const email = req.params.email;
-    let uniqueHumanResource = await humanResource.findUnique({
-        where: {
-            email: email
-        }
-    });
+router.get('/:email', async (req, res, next) => {
+    try {
+        const email = req.params.email;
+        let uniqueHumanResource = await humanResource.findUnique({
+            where: {
+                email: email
+            }
+        });
 
-    res.json(uniqueHumanResource);
+        res.json(uniqueHumanResource);
+    } catch (error) {
+        next(error)
+    }
 })
 
 /*
@@ -28,58 +36,62 @@ router.get('/:email', async (req, res) => {
     2. Number of ongoing interviews across all jobs posted by HR
     3. Number of candidates hired across all jobs posted by HR
 */
-router.get('/dashboardHeader/:email', async (req, res) => {
-    let humanResourceEmail = req.params.email
+router.get('/dashboardHeader/:email', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.params.email
 
-    // From Human Resource email, fetch human resource ID
-    let { id } = await humanResource.findUnique({
-        select: {
-            id: true
-        },
-        where: {
-            email: humanResourceEmail
-        }
-    })
-    
-    let dashboardMetrics = {};
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+            select: {
+                id: true
+            },
+            where: {
+                email: humanResourceEmail
+            }
+        })
+        
+        let dashboardMetrics = {};
 
-    // Number of job applications received across all jobs posted by HR
-    let numberOfJobApplications = await jobApplicationHistory.count({
-        where: {
-            humanResourceId: id
-        }
-    })
-    dashboardMetrics["numberOfJobApplications"] = numberOfJobApplications;
+        // Number of job applications received across all jobs posted by HR
+        let numberOfJobApplications = await jobApplicationHistory.count({
+            where: {
+                humanResourceId: id
+            }
+        })
+        dashboardMetrics["numberOfJobApplications"] = numberOfJobApplications;
 
-    // Number of ongoing interviews across all jobs posted by HR
-    let numberOfOngoingInterviews = await jobApplicationHistory.count({
-        where: {
-            humanResourceId: id,
-            OR: [
-                {
-                    applicationStatus: "ONGOING"
-                },
-                {
-                    applicationStatus: "PASSED"
-                },
-                {
-                    applicationStatus: "WAITING_FOR_INTERVIEWER_ASSIGNMENT"
-                }
-            ]
-        }
-    });
-    dashboardMetrics["numberOfOngoingInterviews"] = numberOfOngoingInterviews;
+        // Number of ongoing interviews across all jobs posted by HR
+        let numberOfOngoingInterviews = await jobApplicationHistory.count({
+            where: {
+                humanResourceId: id,
+                OR: [
+                    {
+                        applicationStatus: "ONGOING"
+                    },
+                    {
+                        applicationStatus: "PASSED"
+                    },
+                    {
+                        applicationStatus: "WAITING_FOR_INTERVIEWER_ASSIGNMENT"
+                    }
+                ]
+            }
+        });
+        dashboardMetrics["numberOfOngoingInterviews"] = numberOfOngoingInterviews;
 
-    // Number of candidates hired across all jobs posted by HR
-    let numberOfCandidatesHired = await jobApplicationHistory.count({
-        where: {
-            humanResourceId: id,
-            applicationStatus: "ACCEPTED"
-        }
-    });
-    dashboardMetrics["numberOfCandidatesHired"] = numberOfCandidatesHired;
+        // Number of candidates hired across all jobs posted by HR
+        let numberOfCandidatesHired = await jobApplicationHistory.count({
+            where: {
+                humanResourceId: id,
+                applicationStatus: "ACCEPTED"
+            }
+        });
+        dashboardMetrics["numberOfCandidatesHired"] = numberOfCandidatesHired;
 
-    res.json(dashboardMetrics);
+        res.json(dashboardMetrics);
+    } catch (error) {
+        next(error)
+    }
 })
 
 /*
@@ -89,59 +101,63 @@ router.get('/dashboardHeader/:email', async (req, res) => {
     2. Job Posting Date
     3. Number of applications received for this job
 */
-router.get('/recentJobPostings/:email', async (req, res) => {
-    let humanResourceEmail = req.params.email;
+router.get('/recentJobPostings/:email', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.params.email;
 
-    // From Human Resource email, fetch human resource ID
-    let { id } = await humanResource.findUnique({
-        select: {
-            id: true
-        },
-        where: {
-            email: humanResourceEmail
-        }
-    })
-    
-    let lastThreeJobPostingIds = await hrJobPostHistory.findMany({
-        where: {
-            humanResourceId: id
-        },
-        orderBy: {
-            createdAt: 'desc'
-        },
-        select: {
-            jobId: true
-        },
-        take: 3
-    });
-
-    let finalQueryResult = [];
-    for(let idx = 0; idx < lastThreeJobPostingIds.length; idx++) {
-        let jobPostingId = lastThreeJobPostingIds[idx].jobId;
-        let singleQueryResult = {};
-        let numberOfJobApplicationsReceived = await jobApplicationHistory.count({
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+            select: {
+                id: true
+            },
             where: {
-                jobId: jobPostingId
+                email: humanResourceEmail
             }
         });
-        singleQueryResult["numberOfJobApplicationsReceived"] = numberOfJobApplicationsReceived;
-
-        let { title, createdAt } = await job.findFirst({
+        
+        let lastThreeJobPostingIds = await hrJobPostHistory.findMany({
             where: {
-                id: jobPostingId
+                humanResourceId: id
+            },
+            orderBy: {
+                createdAt: 'desc'
             },
             select: {
-                title: true,
-                createdAt: true
-            }
+                jobId: true
+            },
+            take: 3
         });
-        singleQueryResult["title"] = title;
-        singleQueryResult["postedAt"] = createdAt;
 
-        finalQueryResult.push(singleQueryResult);
+        let finalQueryResult = [];
+        for(let idx = 0; idx < lastThreeJobPostingIds.length; idx++) {
+            let jobPostingId = lastThreeJobPostingIds[idx].jobId;
+            let singleQueryResult = {};
+            let numberOfJobApplicationsReceived = await jobApplicationHistory.count({
+                where: {
+                    jobId: jobPostingId
+                }
+            });
+            singleQueryResult["numberOfJobApplicationsReceived"] = numberOfJobApplicationsReceived;
+
+            let { title, createdAt } = await job.findFirst({
+                where: {
+                    id: jobPostingId
+                },
+                select: {
+                    title: true,
+                    createdAt: true
+                }
+            });
+            singleQueryResult["title"] = title;
+            singleQueryResult["postedAt"] = createdAt;
+
+            finalQueryResult.push(singleQueryResult);
+        }
+
+        res.json(finalQueryResult);
+    } catch (error) {
+        next(error)
     }
-
-    res.json(finalQueryResult);
 });
 
 /*
@@ -149,39 +165,43 @@ router.get('/recentJobPostings/:email', async (req, res) => {
     1. Number of candidates offered across all jobs posted by HR
     2. Number of candidates hired across all jobs posted by HR
 */
-router.get('/graph/:email', async (req, res) => {
-    let humanResourceEmail = req.params.email;
-     // From Human Resource email, fetch human resource ID
-     let { id } = await humanResource.findUnique({
-        select: {
-            id: true
-        },
-        where: {
-            email: humanResourceEmail
-        }
-    })
+router.get('/graph/:email', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.params.email;
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+            select: {
+                id: true
+            },
+            where: {
+                email: humanResourceEmail
+            }
+        });
 
-    let finalQueryResult = {}
-    // Number of candidates offered (cleared all interviews)
-    let numberOfCandidatesOffered = await jobApplicationHistory.count({
-        where: {
-            humanResourceId: id,
-            applicationStatus: "PASSED"
-        }
-    });
-    finalQueryResult["numberOfCandidatesOffered"] = numberOfCandidatesOffered;
+        let finalQueryResult = {}
+        // Number of candidates offered (cleared all interviews)
+        let numberOfCandidatesOffered = await jobApplicationHistory.count({
+            where: {
+                humanResourceId: id,
+                applicationStatus: "PASSED"
+            }
+        });
+        finalQueryResult["numberOfCandidatesOffered"] = numberOfCandidatesOffered;
 
-    // Number of candidates hired (accepted the extended offer)
-    let numberOfCandidatesHired = await jobApplicationHistory.count({
-        where: {
-            humanResourceId: id,
-            applicationStatus: "ACCEPTED"
-        }
-    });
-    finalQueryResult["numberOfCandidatesHired"] = numberOfCandidatesHired;
+        // Number of candidates hired (accepted the extended offer)
+        let numberOfCandidatesHired = await jobApplicationHistory.count({
+            where: {
+                humanResourceId: id,
+                applicationStatus: "ACCEPTED"
+            }
+        });
+        finalQueryResult["numberOfCandidatesHired"] = numberOfCandidatesHired;
 
-    return res.json(finalQueryResult);
-})
+        return res.json(finalQueryResult);
+    } catch (error) {
+        next(error)
+    }
+});
 
 /*
     Returns latest seven job applicants
@@ -192,31 +212,32 @@ router.get('/graph/:email', async (req, res) => {
     4. Job Title &
     5. Job Company
 */
-router.get('/recentJobApplicants/:email', async (req, res) => {
-    let humanResourceEmail = req.params.email;
-    // From Human Resource email, fetch human resource ID
-    let { id } = await humanResource.findUnique({
-       select: {
-           id: true
-       },
-       where: {
-           email: humanResourceEmail
-       }
-   });
+router.get('/recentJobApplicants/:email', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.params.email;
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+        select: {
+            id: true
+        },
+        where: {
+            email: humanResourceEmail
+        }
+    });
 
-   let recentJobApplicantsData = await jobApplicationHistory.findMany({
-       where: {
-           humanResourceId: id
-       },
-       orderBy: {
-           createdAt: 'desc'
-       },
-       take: 7,
-       select: {
-           jobId: true,
-           intervieweeId: true
-       }
-   })
+    let recentJobApplicantsData = await jobApplicationHistory.findMany({
+        where: {
+            humanResourceId: id
+        },
+        orderBy: {
+            createdAt: 'desc'
+        },
+        take: 7,
+        select: {
+            jobId: true,
+            intervieweeId: true
+        }
+    });
 
    let finalQueryResult = [];
    for(let idx = 0; idx < recentJobApplicantsData.length; idx++){
@@ -258,32 +279,39 @@ router.get('/recentJobApplicants/:email', async (req, res) => {
         finalQueryResult.push(singleQueryResult);
    }
 
-   res.json(finalQueryResult);
+    res.json(finalQueryResult);
+    } catch (error) {
+        next(error)
+    }
 })
 
 // Returns a list of all interviewers onboarded by the HR
-router.get("/interviewers/:email", async (req, res) => {
-    let humanResourceEmail = req.params.email;
-    // From Human Resource email, fetch human resource ID
-    let { id } = await humanResource.findUnique({
-        select: {
-            id: true
-        },
-        where: {
-            email: humanResourceEmail
-        }
-    });
+router.get("/interviewers/:email", async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.params.email;
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+            select: {
+                id: true
+            },
+            where: {
+                email: humanResourceEmail
+            }
+        });
 
-    let interviewers = await hrInterviewerInviteHistory.findMany({
-        where: {
-            humanResourceId: id
-        },
-        include: {
-            interviewer: true
-        }
-    });
+        let interviewers = await hrInterviewerInviteHistory.findMany({
+            where: {
+                humanResourceId: id
+            },
+            include: {
+                interviewer: true
+            }
+        });
 
-    res.json(interviewers);
+        res.json(interviewers);
+    } catch (error) {
+        next(error)
+    }
 });
 
 /*
@@ -291,54 +319,59 @@ router.get("/interviewers/:email", async (req, res) => {
     for which the status is either Ongoing OR Passed OR
     Waiting For Interviewer Assignment]
 */
-router.get('/ongoingInterviews/:email', async (req, res) => {
-    let humanResourceEmail = req.params.email;
-    // From Human Resource email, fetch human resource ID
-    let { id } = await humanResource.findUnique({
-       where: {
-           email: humanResourceEmail
-       },
-       select: {
-           id: true
-       }
-   });
+router.get('/ongoingInterviews/:email', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.params.email;
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+        where: {
+            email: humanResourceEmail
+        },
+        select: {
+            id: true
+        }
+    });
 
-   let ongoingInterviews = await ongoingInterviewStatus.findMany({
-       where: {
-           humanResourceId: id,
-           interviewProgressStatus: "IN_PROGRESS"
-       },
-       select: {
-           id: true,
-           interviewee: {
-               select: {
+    let ongoingInterviews = await ongoingInterviewStatus.findMany({
+        where: {
+            humanResourceId: id,
+            interviewProgressStatus: "IN_PROGRESS"
+        },
+        select: {
+            id: true,
+            interviewee: {
+                select: {
+                        id: true,
+                        name: true,
+                        email: true
+                }
+            },
+            interviewer: {
+                select: {
                     id: true,
                     name: true,
                     email: true
-               }
-           },
-           interviewer: {
-               select: {
-                   id: true,
-                   name: true,
-                   email: true
-               }
-           },
-           interviewRoundNumber: true,
-           interviewerVerdict: true,
-           interviewDateTime: true
-       }
-   });
+                }
+            },
+            interviewRoundNumber: true,
+            interviewerVerdict: true,
+            interviewDateTime: true
+        }
+    });
 
-   res.json(ongoingInterviews);
+    res.json(ongoingInterviews);
+    } catch (error) {
+        next(error)
+    }
 })
 
 /*
     Returns a list of "previous interviews" for the HR [interviews
     for which the status is either Accepted OR Rejected]
 */
-router.get('/previousInterviews/:email', async (req, res) => {
-    let humanResourceEmail = req.params.email;
+router.get('/previousInterviews/:email', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.params.email;
     // From Human Resource email, fetch human resource ID
     let { id } = await humanResource.findUnique({
        select: {
@@ -383,160 +416,179 @@ router.get('/previousInterviews/:email', async (req, res) => {
    });
 
    res.json(previousInterviews);
+    } catch (error) {
+        next(error)
+    }
 })
 
 // Returns all interviewees who applied across all jobs, posted by HR
-router.get('/applicants/:email', async (req, res) => {
-    let humanResourceEmail = req.params.email;
-    // From Human Resource email, fetch human resource ID
-    let { id } = await humanResource.findUnique({
-        select: {
-            id: true
-        },
-        where: {
-            email: humanResourceEmail
-        }
-    });
-
-    // Get a list of IDs of all jobs posted by HR
-    let applicantsToJobsPostedByHR = await jobApplicationHistory.findMany({
-        where: {
-            humanResourceId: id,
-            applicationStatus: "APPLIED"
-        },
-        include: {
-            interviewee: {
-                select: {
-                    id: true,
-                    name: true,
-                    yearsOfExperience: true,
-                    primaryAndSecondarySkills: true
-                }
+router.get('/applicants/:email', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.params.email;
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+            select: {
+                id: true
             },
-            job: {
-                select: {
-                    id: true,
-                    title: true,
-                    company: {
-                        select: {
-                            companyName: true
-                        }  
+            where: {
+                email: humanResourceEmail
+            }
+        });
+
+        // Get a list of IDs of all jobs posted by HR
+        let applicantsToJobsPostedByHR = await jobApplicationHistory.findMany({
+            where: {
+                humanResourceId: id,
+                applicationStatus: "APPLIED"
+            },
+            include: {
+                interviewee: {
+                    select: {
+                        id: true,
+                        name: true,
+                        yearsOfExperience: true,
+                        primaryAndSecondarySkills: true
+                    }
+                },
+                job: {
+                    select: {
+                        id: true,
+                        title: true,
+                        company: {
+                            select: {
+                                companyName: true
+                            }  
+                        }
                     }
                 }
             }
-        }
-    });
+        });
 
-    res.json(applicantsToJobsPostedByHR);
+        res.json(applicantsToJobsPostedByHR);
+    } catch (error) {
+        next(error)
+    }
 });
 
 // POST Endpoints
 // Creates a new Human Resource in our system
-router.post("/", async (req, res) => {
-    let humanResourceEmail = req.body.email;
+router.post("/", async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.body.email;
 
-    let createdHumanResource = await humanResource.create({
-        data: {
-            email: humanResourceEmail,
-            companyId: "ckyjcs02n1616ioi5oa39ocn4" // All HRs are currently tagged to Test Interviewium Company
-        }
-    });
-
-    res.json(createdHumanResource);
+        let createdHumanResource = await humanResource.create({
+            data: {
+                email: humanResourceEmail,
+                companyId: "ckyjcs02n1616ioi5oa39ocn4" // All HRs are currently tagged to Test Interviewium Company
+            }
+        });
+    
+        res.json(createdHumanResource);
+    } catch (error) {
+        next(error)
+    }
 });
 
 // Creates a new job posting
-router.post('/job', async (req, res) => {
-    let jobTitle = req.body.jobTitle;
-    let companyName = req.body.companyName;
-    let cityName = req.body.cityName;
-    let employmentType = req.body.employmentType;
-    let jobDescription = req.body.jobDescription;
-    let primarySkills = req.body.primarySkills;
-    let secondarySkills = req.body.secondarySkills;
-    let humanResourceEmail = req.body.humanResourceEmail;
+router.post('/job', async (req, res, next) => {
+    try {
+        let jobTitle = req.body.jobTitle;
+        let companyName = req.body.companyName;
+        let cityName = req.body.cityName;
+        let employmentType = req.body.employmentType;
+        let jobDescription = req.body.jobDescription;
+        let primarySkills = req.body.primarySkills;
+        let secondarySkills = req.body.secondarySkills;
+        let humanResourceEmail = req.body.humanResourceEmail;
 
-     // From Human Resource email, fetch human resource ID
-     let { id } = await humanResource.findUnique({
-        select: {
-            id: true
-        },
-        where: {
-            email: humanResourceEmail
-        }
-    });
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+            select: {
+                id: true
+            },
+            where: {
+                email: humanResourceEmail
+            }
+        });
 
-    // From company Name, fetch company ID
-    let companyObj = await company.findUnique({
-        select: {
-            id: true
-        },
-        where: {
-            companyName: companyName
-        }
-    });
-    let companyId = companyObj.id;
+        // From company Name, fetch company ID
+        let companyObj = await company.findUnique({
+            select: {
+                id: true
+            },
+            where: {
+                companyName: companyName
+            }
+        });
+        let companyId = companyObj.id;
 
-    // From city name, fetch location ID
-    let locationObj = await location.findFirst({
-        select: {
-            id: true
-        },
-        where: {
-            city: cityName
-        }
-    });
-    let locationId = locationObj.id;
+        // From city name, fetch location ID
+        let locationObj = await location.findFirst({
+            select: {
+                id: true
+            },
+            where: {
+                city: cityName
+            }
+        });
+        let locationId = locationObj.id;
 
-    let primaryAndSecondarySkills = primarySkills + "^" + secondarySkills;
+        let primaryAndSecondarySkills = primarySkills + "^" + secondarySkills;
 
-    let newJobPost = await job.create({
-        data: {
-            title: jobTitle,
-            humanResourceId: id,
-            employmentType: employmentType,
-            jobDescription: jobDescription,
-            companyId: companyId,
-            locationId: locationId,
-            primaryAndSecondarySkills: primaryAndSecondarySkills
-        }
-    })
+        let newJobPost = await job.create({
+            data: {
+                title: jobTitle,
+                humanResourceId: id,
+                employmentType: employmentType,
+                jobDescription: jobDescription,
+                companyId: companyId,
+                locationId: locationId,
+                primaryAndSecondarySkills: primaryAndSecondarySkills
+            }
+        })
 
-    res.json(newJobPost);
+        res.json(newJobPost);
+    } catch (error) {
+        next(error)
+    }
 })
 
 // Create an interviewer invite record
-router.post('/inviteInterviewer', async (req, res) => {
-    let humanResourceEmail = req.body.email;
-    // From Human Resource email, fetch human resource ID
-    let { id } = await humanResource.findUnique({
-        select: {
-            id: true
-        },
-        where: {
-            email: humanResourceEmail
-        }
-    });
-
-    let interviewerEmail = req.body.interviewerEmail;
-
-    let interviewerRecord = await interviewer.create({
-        data: {
-            email: interviewerEmail,
-            companyId: "ckyjcs02n1616ioi5oa39ocn4",
-            interviewerProfileImageS3Link: "https://picsum.photos/200/300"
-        }
-    })
-    let interviewerRecordId = interviewerRecord.id;
-
-    let hrInterviewerInviteHistoryRecord = await hrInterviewerInviteHistory.create({
-        data: {
-            humanResourceId: id,
-            interviewerId: interviewerRecordId
-        }
-    })
-
-    res.json(interviewerRecord);
+router.post('/inviteInterviewer', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.body.email;
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+            select: {
+                id: true
+            },
+            where: {
+                email: humanResourceEmail
+            }
+        });
+    
+        let interviewerEmail = req.body.interviewerEmail;
+    
+        let interviewerRecord = await interviewer.create({
+            data: {
+                email: interviewerEmail,
+                companyId: "ckyjcs02n1616ioi5oa39ocn4",
+                interviewerProfileImageS3Link: "https://picsum.photos/200/300"
+            }
+        })
+        let interviewerRecordId = interviewerRecord.id;
+    
+        let hrInterviewerInviteHistoryRecord = await hrInterviewerInviteHistory.create({
+            data: {
+                humanResourceId: id,
+                interviewerId: interviewerRecordId
+            }
+        })
+    
+        res.json(interviewerRecord);
+    } catch (error) {
+        next(error)
+    }
 })
 
 module.exports = router

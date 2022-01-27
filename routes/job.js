@@ -5,52 +5,60 @@ const { route } = require('./interviewer');
 const { job, jobApplicationHistory, interviewee } = new PrismaClient();
 
 // GET API Endpoints
-router.get('/', async (req, res) => {
-    let allJobs = await job.findMany({
-        select: {
-            id: true,
-            humanResourceId: true,
-            title: true,
-            company: {
-                select: {
-                    companyName: true
-                }
-            },
-            primaryAndSecondarySkills: true,
-            minExperienceInYears: true,
-            maxExperienceInYears: true,
-            jobDescription: true
-        }
-    });
-    res.json(allJobs);
+router.get('/', async (req, res, next) => {
+    try {
+        let allJobs = await job.findMany({
+            select: {
+                id: true,
+                humanResourceId: true,
+                title: true,
+                company: {
+                    select: {
+                        companyName: true
+                    }
+                },
+                primaryAndSecondarySkills: true,
+                minExperienceInYears: true,
+                maxExperienceInYears: true,
+                jobDescription: true
+            }
+        });
+        res.json(allJobs);
+    } catch (error) {
+        next(error)
+    }
 });
 
 // POST API Endpoints
-router.post('/apply', async (req, res) => {
-    let intervieweeEmail = req.body.intervieweeEmail;
-    let humanResourceId = req.body.humanResourceId;
-    let jobId = req.body.jobId;
-
-    // Get interviewee ID from interviewee email
-    let { id } = await interviewee.findUnique({
-        where: {
-            email: intervieweeEmail
-        },
-        select: {
-            id: true
-        }
-    });
-
-    let newJobApplicationHistoryRecord = await jobApplicationHistory.create({
-        data: {
-            intervieweeId: id,
-            humanResourceId: humanResourceId,
-            jobId: jobId,
-            currentInterviewRound: 0
-        }
-    });
-
-    res.json(newJobApplicationHistoryRecord);
-})
+router.post('/apply', async (req, res, next) => {
+    try {
+        let intervieweeEmail = req.body.intervieweeEmail;
+        let humanResourceId = req.body.humanResourceId;
+        let jobId = req.body.jobId;
+    
+        // Get interviewee ID from interviewee email
+        let { id } = await interviewee.findUnique({
+            where: {
+                email: intervieweeEmail
+            },
+            select: {
+                id: true
+            }
+        });
+    
+        let newJobApplicationHistoryRecord = await jobApplicationHistory.create({
+            data: {
+                intervieweeId: id,
+                humanResourceId: humanResourceId,
+                jobId: jobId,
+                currentInterviewRound: 0
+            }
+        });
+    
+        res.json(newJobApplicationHistoryRecord);
+    } catch (error) {
+        next(error)
+    }
+});
 
 module.exports = router;
