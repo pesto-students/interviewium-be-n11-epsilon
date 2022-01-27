@@ -352,7 +352,8 @@ router.get('/profile/:email', async (req, res, next) => {
                 email: true,
                 primaryAndSecondarySkills: true,
                 currentCompanyName: true,
-                resume: true
+                resume: true,
+                professionalExperience: true
             }
         });
 
