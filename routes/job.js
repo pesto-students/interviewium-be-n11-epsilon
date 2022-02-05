@@ -7,23 +7,254 @@ const { job, jobApplicationHistory, interviewee, hrJobPostHistory, humanResource
 // GET API Endpoints
 router.get('/', async (req, res, next) => {
     try {
-        let allJobs = await job.findMany({
-            select: {
-                id: true,
-                humanResourceId: true,
-                title: true,
-                company: {
+        let { primarySkills, secondarySkills, employmentType, experience, intervieweeEmail } = req.query;
+
+        if (experience) {
+            experience = parseInt(experience);
+        }
+
+        // From interviewee email, fetch interviewee ID
+        let id;
+        try {
+            let { id } = await interviewee.findUnique({
+                where: {
+                    email: intervieweeEmail
+                },
+                select: {
+                    id: true
+                }
+            });
+            id = id;
+        } catch (error) {
+            intervieweeEmail = null
+        }
+        
+        
+        let filteredJobs;
+        if (primarySkills) {
+            primarySkills = primarySkills.toLowerCase();
+            let primarySkillsArr;
+            primarySkillsArr = primarySkills.trim().split(',');
+
+            if (primarySkillsArr.length == 1) { // Frontend has only sent 1 primary skill
+                let firstPrimarySkill = primarySkillsArr[0];
+            
+                filteredJobs = await job.findMany({
+                    where: {
+                        primaryAndSecondarySkills: {
+                            contains: firstPrimarySkill
+                        },
+                        employmentType: employmentType,
+                        minExperienceInYears: {
+                            lte: experience
+                        },
+                        maxExperienceInYears: {
+                            gte: experience
+                        }
+                    },
                     select: {
-                        companyName: true
+                        id: true,
+                        humanResourceId: true,
+                        title: true,
+                        company: {
+                            select: {
+                                companyName: true
+                            }
+                        },
+                        primaryAndSecondarySkills: true,
+                        minExperienceInYears: true,
+                        maxExperienceInYears: true,
+                        jobDescription: true,
+                        employmentType: true
+                    }
+                });
+            }
+
+            if (primarySkillsArr.length == 2) { // Frontend has sent two primary skills
+                let firstPrimarySkill = primarySkillsArr[0];
+                let secondPrimarySkill = primarySkillsArr[1];
+            
+                filteredJobs = await job.findMany({
+                    where: {
+                            OR: [
+                                {
+                                    primaryAndSecondarySkills: {
+                                        contains: firstPrimarySkill
+                                    }
+                                },
+                                {
+                                    primaryAndSecondarySkills: {
+                                        contains: secondPrimarySkill
+                                    }
+                                }
+                            ],
+                            employmentType: employmentType,
+                            minExperienceInYears: {
+                                lte: experience
+                            },
+                            maxExperienceInYears: {
+                                gte: experience
+                            }
+                        },
+                        select: {
+                            id: true,
+                            humanResourceId: true,
+                            title: true,
+                            company: {
+                                select: {
+                                    companyName: true
+                                }
+                            },
+                            primaryAndSecondarySkills: true,
+                            minExperienceInYears: true,
+                            maxExperienceInYears: true,
+                            jobDescription: true,
+                            employmentType: true
+                        }
+                    }
+                );
+            }
+        } else if (secondarySkills) {
+            secondarySkills = secondarySkills.toLowerCase();
+            let secondarySkillsArr;
+            secondarySkillsArr = secondarySkills.trim().split(',');
+
+            if (secondarySkillsArr.length == 1) { // Frontend has only sent 1 secondary skill
+                let firstSecondarySkill = secondarySkillsArr[0];
+            
+                filteredJobs = await job.findMany({
+                    where: {
+                        primaryAndSecondarySkills: {
+                            contains: firstSecondarySkill
+                        },
+                        employmentType: employmentType,
+                        minExperienceInYears: {
+                            lte: experience
+                        },
+                        maxExperienceInYears: {
+                            gte: experience
+                        }
+                    },
+                    select: {
+                        id: true,
+                        humanResourceId: true,
+                        title: true,
+                        company: {
+                            select: {
+                                companyName: true
+                            }
+                        },
+                        primaryAndSecondarySkills: true,
+                        minExperienceInYears: true,
+                        maxExperienceInYears: true,
+                        jobDescription: true,
+                        employmentType: true
+                    }
+                });
+            }
+
+            if (secondarySkillsArr.length == 2) { // Frontend has sent two secondary skills
+                let firstSecondarySkill = secondarySkillsArr[0];
+                let secondSecondarySkill = secondarySkillsArr[1]
+            
+                filteredJobs = await job.findMany({
+                    where: {
+                            OR: [
+                                {
+                                    primaryAndSecondarySkills: {
+                                        contains: firstSecondarySkill
+                                    }
+                                },
+                                {
+                                    primaryAndSecondarySkills: {
+                                        contains: secondSecondarySkill
+                                    }
+                                }
+                            ],
+                            employmentType: employmentType,
+                            minExperienceInYears: {
+                                lte: experience
+                            },
+                            maxExperienceInYears: {
+                                gte: experience
+                            }
+                        },
+                        select: {
+                            id: true,
+                            humanResourceId: true,
+                            title: true,
+                            company: {
+                                select: {
+                                    companyName: true
+                                }
+                            },
+                            primaryAndSecondarySkills: true,
+                            minExperienceInYears: true,
+                            maxExperienceInYears: true,
+                            jobDescription: true,
+                            employmentType: true
+                        }
+                    }
+                );
+            }
+        } else {
+            filteredJobs = await job.findMany({
+                where: {
+                    employmentType: employmentType,
+                    minExperienceInYears: {
+                        lte: experience
+                    },
+                    maxExperienceInYears: {
+                        gte: experience
                     }
                 },
-                primaryAndSecondarySkills: true,
-                minExperienceInYears: true,
-                maxExperienceInYears: true,
-                jobDescription: true
+                select: {
+                    id: true,
+                    humanResourceId: true,
+                    title: true,
+                    company: {
+                        select: {
+                            companyName: true
+                        }
+                    },
+                    primaryAndSecondarySkills: true,
+                    minExperienceInYears: true,
+                    maxExperienceInYears: true,
+                    jobDescription: true,
+                    employmentType: true
+                }
+            });
+        }
+
+        if (intervieweeEmail) {
+            let allJobsAppliedByInterviewee = await jobApplicationHistory.findMany({
+                where: {
+                    intervieweeId: id
+                },
+                select: {
+                    jobId: true
+                }
+            });
+
+            allJobsAppliedByIntervieweeArray = [];
+            for (let idx = 0; idx < allJobsAppliedByInterviewee.length; idx++) {
+                allJobsAppliedByIntervieweeArray.push(allJobsAppliedByInterviewee[idx].jobId);
             }
-        });
-        res.json(allJobs);
+
+            let finalFilteredJobs = [];
+
+            for(let idx = 0; idx < filteredJobs.length; idx++) {
+                let jobId = filteredJobs[idx].id;
+
+                if (!allJobsAppliedByIntervieweeArray.includes(jobId)) {
+                    finalFilteredJobs.push(filteredJobs[idx]);
+                }
+            }
+
+            res.json(finalFilteredJobs);
+        } else {
+            res.json(filteredJobs);
+        }
     } catch (error) {
         next(error)
     }

@@ -14,6 +14,39 @@ router.get('/', async (req, res, next) => {
     } catch (error) {
         next(error)
     }
+});
+
+router.get('/cities', async (req, res, next) => {
+    try {
+        let allCities = await location.findMany({
+            select: {
+                city: true
+            }
+        });
+
+        res.json(allCities);
+    } catch(error) {
+        next(error);
+    }
+});
+
+router.get('/company/:email', async (req, res, next) => {
+    try {
+        let email = req.params.email;
+        let domainName = email.split('@')[1]
+
+        let matchedCompany = await company.findFirst({
+            where: {
+                companyEmailDomainName: {
+                    endsWith: domainName
+                }
+            }
+        });
+
+        res.json(matchedCompany);
+    } catch (error) {
+        next(error);
+    }
 })
 
 router.get('/:email', async (req, res, next) => {
