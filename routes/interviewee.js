@@ -463,6 +463,22 @@ router.get('/interviews/:email', async (req, res, next) => {
         let interviewsIntervieweeIsPartOf = await ongoingInterviewStatus.findMany({
             where: {
                 intervieweeId: id
+            },
+            include: {
+                interviewer: {
+                    select: {
+                        name: true
+                    }
+                },
+                job: {
+                    select: {
+                        company: {
+                            select: {
+                                companyName: true
+                            }
+                        }
+                    }
+                }
             }
         });
 
@@ -485,7 +501,8 @@ router.get('/profile/:email', async (req, res, next) => {
                 primaryAndSecondarySkills: true,
                 currentCompanyName: true,
                 resume: true,
-                professionalExperience: true
+                professionalExperience: true,
+                resume: true
             }
         });
 
