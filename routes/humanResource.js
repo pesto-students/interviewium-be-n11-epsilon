@@ -563,6 +563,7 @@ router.post('/job', async (req, res, next) => {
         });
 
         // From company Name, fetch company ID
+        // If there is no company by this name, create one
         let companyObj = await company.findUnique({
             select: {
                 id: true
@@ -571,9 +572,17 @@ router.post('/job', async (req, res, next) => {
                 companyName: companyName
             }
         });
+        if (!companyObj) {
+            companyObj = await company.create({
+                data: {
+                    companyName: companyName
+                }
+            })
+        };
         let companyId = companyObj.id;
 
         // From city name, fetch location ID
+        // If there's no city by this name create one
         let locationObj = await location.findFirst({
             select: {
                 id: true
@@ -582,6 +591,14 @@ router.post('/job', async (req, res, next) => {
                 city: cityName
             }
         });
+        if (!locationObj) {
+            locationObj = await location.create({
+                data: {
+                    city: cityName,
+                    country: ''
+                }
+            })
+        };
         let locationId = locationObj.id;
 
         let primaryAndSecondarySkills = primarySkills + "^" + secondarySkills;
