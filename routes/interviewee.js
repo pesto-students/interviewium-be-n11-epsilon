@@ -1,18 +1,21 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
+const e = require('express');
 const res = require('express/lib/response');
-const { interviewee, jobApplicationHistory, humanResource, ongoingInterviewStatus, hotJobOfTheDay } = new PrismaClient();
+const { interviewee, jobApplicationHistory, humanResource, ongoingInterviewStatus, hotJobOfTheDay,
+        hrIntervieweeInviteHistory } = new PrismaClient();
 
 // GET Endpoints
 // Returns a list of all interviewees in our ecosystem
 router.get('/', async (req, res, next) => {
     try {
-        let { primarySkills, secondarySkills, employmentType, experience } = req.query;
+        let { primarySkills, secondarySkills, employmentType, experience, humanResourceEmail } = req.query;
 
         if (experience) {
             experience = parseInt(experience);
         }
         
+        let filteredInterviewees;
         if (primarySkills) {
             primarySkills = primarySkills.toLowerCase();
             let primarySkillsArr;
@@ -21,7 +24,7 @@ router.get('/', async (req, res, next) => {
             if (primarySkillsArr.length == 1) { // Frontend has only sent 1 primary skill
                 let firstPrimarySkill = primarySkillsArr[0];
             
-                let filteredInterviewees = await interviewee.findMany({
+                filteredInterviewees = await interviewee.findMany({
                     where: {
                         primaryAndSecondarySkills: {
                             contains: firstPrimarySkill
@@ -30,14 +33,13 @@ router.get('/', async (req, res, next) => {
                         yearsOfExperience: experience
                     }
                 });
-                res.json(filteredInterviewees);
             }
 
             if (primarySkillsArr.length == 2) { // Frontend has sent two primary skills
                 let firstPrimarySkill = primarySkillsArr[0];
                 let secondPrimarySkill = primarySkillsArr[1];
             
-                let filteredInterviewees = await interviewee.findMany({
+                filteredInterviewees = await interviewee.findMany({
                     where: {
                             OR: [
                                 {
@@ -56,12 +58,8 @@ router.get('/', async (req, res, next) => {
                         }
                     }
                 );
-                res.json(filteredInterviewees);
             }
-        }
-
-    
-        if (secondarySkills) {
+        } else if (secondarySkills) {
             secondarySkills = secondarySkills.toLowerCase();
             let secondarySkillsArr;
             secondarySkillsArr = secondarySkills.trim().split(',');
@@ -69,7 +67,7 @@ router.get('/', async (req, res, next) => {
             if (secondarySkillsArr.length == 1) { // Frontend has only sent 1 secondary skill
                 let firstSecondarySkill = secondarySkillsArr[0];
             
-                let filteredInterviewees = await interviewee.findMany({
+                filteredInterviewees = await interviewee.findMany({
                     where: {
                         primaryAndSecondarySkills: {
                             contains: firstSecondarySkill
@@ -78,14 +76,13 @@ router.get('/', async (req, res, next) => {
                         yearsOfExperience: experience
                     }
                 });
-                res.json(filteredInterviewees);
             }
 
             if (secondarySkillsArr.length == 2) { // Frontend has sent two secondary skills
                 let firstSecondarySkill = secondarySkillsArr[0];
                 let secondSecondarySkill = secondarySkillsArr[1]
             
-                let filteredInterviewees = await interviewee.findMany({
+                filteredInterviewees = await interviewee.findMany({
                     where: {
                             OR: [
                                 {
@@ -104,18 +101,47 @@ router.get('/', async (req, res, next) => {
                         }
                     }
                 );
-                res.json(filteredInterviewees);
             }
+        } else {
+            filteredInterviewees = await interviewee.findMany({
+                where: {
+                    lookingForEmploymentType: employmentType,
+                    yearsOfExperience: experience
+                }
+            });
         }
 
-        let filteredInterviewees = await interviewee.findMany({
-            where: {
-                lookingForEmploymentType: employmentType,
-                yearsOfExperience: experience
-            }
-        });
+        if (humanResourceEmail) {
+            // From Human Resource email, fetch human resource ID
+            let { id } = await humanResource.findUnique({
+                select: {
+                    id: true
+                },
+                where: {
+                    email: humanResourceEmail
+                }
+            })
 
-        res.json(filteredInterviewees);
+            finalFilteredInterviewees = []
+            for (let idx = 0; idx < filteredInterviewees.length; idx++) {
+                let intervieweeId = filteredInterviewees[idx].id;
+                let humanResourceId = id;
+
+                let hrIntervieweeInviteRecord = await hrIntervieweeInviteHistory.findFirst({
+                    where: {
+                        intervieweeId: intervieweeId,
+                        humanResourceId: humanResourceId
+                    }
+                });
+
+                if (!hrIntervieweeInviteRecord) {
+                    finalFilteredInterviewees.push(filteredInterviewees[idx]);
+                }
+            }
+            res.json(finalFilteredInterviewees);
+        } else {
+            res.json(filteredInterviewees);
+        }
     } catch (error) {
         next(error)
     }

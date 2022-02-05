@@ -2,7 +2,8 @@ const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const res = require('express/lib/response');
 const { humanResource, jobApplicationHistory, hrJobPostHistory, job, interviewee, company,
-        location, hrInterviewerInviteHistory, interviewer, ongoingInterviewStatus } = new PrismaClient();
+        location, hrInterviewerInviteHistory, interviewer, ongoingInterviewStatus,
+        hrIntervieweeInviteHistory } = new PrismaClient();
 
 // GET Endpoints
 router.get('/', async (req, res, next) => {
@@ -92,7 +93,57 @@ router.get('/dashboardHeader/:email', async (req, res, next) => {
     } catch (error) {
         next(error)
     }
-})
+});
+
+router.get('/invitedInterviewees/:email', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.params.email;
+
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+            select: {
+                id: true
+            },
+            where: {
+                email: humanResourceEmail
+            }
+        });
+
+        let invitedInterviewees = await hrIntervieweeInviteHistory.findMany({
+            where: {
+                humanResourceId: id
+            },
+            select: {
+                interviewee: {
+                    select: {
+                        name: true,
+                        email: true,
+                        yearsOfExperience: true,
+                        mobileNumber: true,
+                        linkedinProfileLink: true,
+                        currentCompanyName: true,
+                        resumeLink: true
+                    }
+                },
+                job: {
+                    select: {
+                        id: true,
+                        title: true,
+                        company: {
+                            select: {
+                                companyName: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        res.json(invitedInterviewees);
+    } catch (error) {
+        next(error);
+    }
+});
 
 /*
     Returns last three job postings done by the HR
@@ -441,7 +492,7 @@ router.get('/applicants/:email', async (req, res, next) => {
                 humanResourceId: id,
                 applicationStatus: "APPLIED"
             },
-            include: {
+            select: {
                 interviewee: {
                     select: {
                         id: true,
@@ -545,7 +596,19 @@ router.post('/job', async (req, res, next) => {
                 locationId: locationId,
                 primaryAndSecondarySkills: primaryAndSecondarySkills
             }
-        })
+        });
+
+       if (newJobPost) {
+            let jobId = newJobPost.id;
+
+            // Create a new record in HrJobPostHistory table
+            let hrJobPostHistoryRecord = await hrJobPostHistory.create({
+                data: {
+                    humanResourceId: id,
+                    jobId: jobId
+                }
+            });
+       }
 
         res.json(newJobPost);
     } catch (error) {
@@ -590,5 +653,35 @@ router.post('/inviteInterviewer', async (req, res, next) => {
         next(error)
     }
 })
+
+router.post('/inviteInterviewee', async (req, res, next) => {
+    try {
+        let humanResourceEmail = req.body.email;
+        let intervieweeId = req.body.intervieweeId;
+        let jobId = req.body.jobId;
+
+        // From Human Resource email, fetch human resource ID
+        let { id } = await humanResource.findUnique({
+            select: {
+                id: true
+            },
+            where: {
+                email: humanResourceEmail
+            }
+        });
+
+        let hrIntervieweeInviteRecord = await hrIntervieweeInviteHistory.create({
+            data: {
+                humanResourceId: id,
+                intervieweeId: intervieweeId,
+                jobId: jobId
+            }
+        });
+
+        res.json(hrIntervieweeInviteRecord);
+    } catch (error) {
+        next(error);
+    }
+});
 
 module.exports = router
