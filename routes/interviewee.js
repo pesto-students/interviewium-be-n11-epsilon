@@ -7,9 +7,115 @@ const { interviewee, jobApplicationHistory, humanResource, ongoingInterviewStatu
 // Returns a list of all interviewees in our ecosystem
 router.get('/', async (req, res, next) => {
     try {
-        let interviewees = await interviewee.findMany({});
+        let { primarySkills, secondarySkills, employmentType, experience } = req.query;
 
-        res.json(interviewees);
+        if (experience) {
+            experience = parseInt(experience);
+        }
+        
+        if (primarySkills) {
+            primarySkills = primarySkills.toLowerCase();
+            let primarySkillsArr;
+            primarySkillsArr = primarySkills.trim().split(',');
+
+            if (primarySkillsArr.length == 1) { // Frontend has only sent 1 primary skill
+                let firstPrimarySkill = primarySkillsArr[0];
+            
+                let filteredInterviewees = await interviewee.findMany({
+                    where: {
+                        primaryAndSecondarySkills: {
+                            contains: firstPrimarySkill
+                        },
+                        lookingForEmploymentType: employmentType,
+                        yearsOfExperience: experience
+                    }
+                });
+                res.json(filteredInterviewees);
+            }
+
+            if (primarySkillsArr.length == 2) { // Frontend has sent two primary skills
+                let firstPrimarySkill = primarySkillsArr[0];
+                let secondPrimarySkill = primarySkillsArr[1];
+            
+                let filteredInterviewees = await interviewee.findMany({
+                    where: {
+                            OR: [
+                                {
+                                    primaryAndSecondarySkills: {
+                                        contains: firstPrimarySkill
+                                    }
+                                },
+                                {
+                                    primaryAndSecondarySkills: {
+                                        contains: secondPrimarySkill
+                                    }
+                                }
+                            ],
+                            lookingForEmploymentType: employmentType,
+                            yearsOfExperience: experience
+                        }
+                    }
+                );
+                res.json(filteredInterviewees);
+            }
+        }
+
+    
+        if (secondarySkills) {
+            secondarySkills = secondarySkills.toLowerCase();
+            let secondarySkillsArr;
+            secondarySkillsArr = secondarySkills.trim().split(',');
+
+            if (secondarySkillsArr.length == 1) { // Frontend has only sent 1 secondary skill
+                let firstSecondarySkill = secondarySkillsArr[0];
+            
+                let filteredInterviewees = await interviewee.findMany({
+                    where: {
+                        primaryAndSecondarySkills: {
+                            contains: firstSecondarySkill
+                        },
+                        lookingForEmploymentType: employmentType,
+                        yearsOfExperience: experience
+                    }
+                });
+                res.json(filteredInterviewees);
+            }
+
+            if (secondarySkillsArr.length == 2) { // Frontend has sent two secondary skills
+                let firstSecondarySkill = secondarySkillsArr[0];
+                let secondSecondarySkill = secondarySkillsArr[1]
+            
+                let filteredInterviewees = await interviewee.findMany({
+                    where: {
+                            OR: [
+                                {
+                                    primaryAndSecondarySkills: {
+                                        contains: firstSecondarySkill
+                                    }
+                                },
+                                {
+                                    primaryAndSecondarySkills: {
+                                        contains: secondSecondarySkill
+                                    }
+                                }
+                            ],
+                            lookingForEmploymentType: employmentType,
+                            yearsOfExperience: experience
+                        }
+                    }
+                );
+                res.json(filteredInterviewees);
+            }
+        }
+
+        let filteredInterviewees = await interviewee.findMany({
+            where: {
+                lookingForEmploymentType: employmentType,
+                yearsOfExperience: experience
+            }
+        });
+
+        res.json(filteredInterviewees);
     } catch (error) {
         next(error)
     }
@@ -493,11 +599,12 @@ router.put('/', async (req, res, next) => {
     try {
         let intervieweeEmail = req.body.intervieweeEmail;
         let intervieweeName = req.body.intervieweeName;
-        let primarySkills = req.body.primarySkills;
-        let secondarySkills = req.body.secondarySkills;
+        let primarySkills = req.body.primarySkills.toLowerCase();
+        let secondarySkills = req.body.secondarySkills.toLowerCase();
         let companyName = req.body.companyName;
         let resume = req.body.resume;
         let professionalExperience = req.body.professionalExperience;
+        let tags = primarySkills + ',' +secondarySkills;
     
         let primaryAndSecondarySkills = primarySkills + '#' + secondarySkills;
     
@@ -510,7 +617,8 @@ router.put('/', async (req, res, next) => {
                 primaryAndSecondarySkills: primaryAndSecondarySkills,
                 currentCompanyName: companyName,
                 resume: resume,
-                professionalExperience: professionalExperience
+                professionalExperience: professionalExperience,
+                tags: tags
             }
         });
     
