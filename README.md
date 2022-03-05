@@ -57,7 +57,7 @@ Credentials: One Click demo login is implemented.
 
 - [Node.js](https://nodejs.org/en/)
 - [Prisma ORM](https://www.prisma.io/)
-- [MySQL] (https://www.mysql.com/)
+- [MySQL](https://www.mysql.com/)
 <br/>
 
 # Authors
